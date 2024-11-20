@@ -176,14 +176,19 @@ class Config(configparser.ConfigParser):
                 par_names = self.getlist(
                     "common", "parnames", element_type=str, fallback=[]
                 )
-                lb = [None] * len(par_names)
-                ub = [None] * len(par_names)
+                lb = []
+                ub = []
                 for i, par_name in enumerate(par_names):
                     # Validate the parameter-specific block
                     self._check_param_settings(par_name)
 
-                    lb[i] = self[par_name]["lower_bound"]
-                    ub[i] = self[par_name]["upper_bound"]
+                    if self[par_name]["par_type"] == "categorical":
+                        choices = self.getlist(par_name, "choices", element_type=str)
+                        lb.append("0")
+                        ub.append(str(len(choices) - 1))
+                    else:
+                        lb.append(self[par_name]["lower_bound"])
+                        ub.append(self[par_name]["upper_bound"])
 
                 self["common"]["lb"] = f"[{', '.join(lb)}]"
                 self["common"]["ub"] = f"[{', '.join(ub)}]"
@@ -276,6 +281,12 @@ class Config(configparser.ConfigParser):
                 and self.getint(param_name, "upper_bound") % 1 == 0
             ):
                 raise ValueError(f"Parameter {param_name} has non-integer bounds.")
+        elif param_block["par_type"] == "categorical":
+            # Need a choices array
+            if "choices" not in param_block:
+                raise ValueError(
+                    f"Parameter {param_name} is missing the choices setting."
+                )
         else:
             raise ValueError(
                 f"Parameter {param_name} has an unsupported parameter type {param_block['par_type']}."
