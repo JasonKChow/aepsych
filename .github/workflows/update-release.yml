@@ -34,4 +34,4 @@ jobs:
       - name: Create pull request
         uses: peter-evans/create-pull-request@v7
         with:
-          commit-message: Update main version to ${{ version }}+dev
+          commit-message: Update main version to ${{ env.version }}+dev
