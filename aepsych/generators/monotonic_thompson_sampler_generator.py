@@ -5,7 +5,8 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import List, Optional, Type
+import warnings
+from typing import Dict, List, Optional, Type
 
 import torch
 from aepsych.acquisition.objective import ProbitObjective
@@ -30,6 +31,7 @@ class MonotonicThompsonSamplerGenerator(AEPsychGenerator[MonotonicRejectionGP]):
         num_ts_points: int,
         target_value: float,
         objective: MCAcquisitionObjective,
+        dim: int,
         explore_features: Optional[List[Type[int]]] = None,
     ) -> None:
         """Initialize MonotonicMCAcquisition
@@ -41,6 +43,7 @@ class MonotonicThompsonSamplerGenerator(AEPsychGenerator[MonotonicRejectionGP]):
             target_value (float): target value that is being looked for
             objective (MCAcquisitionObjective): Objective transform of the GP output
                 before evaluating the acquisition. Defaults to identity transform.
+            dim (int): Dimensionality of the model.
             explore_features (List[Type[int]], optional): List of features that will be selected randomly and then
                 fixed for acquisition fn optimization. Defaults to None.
         """
@@ -50,20 +53,28 @@ class MonotonicThompsonSamplerGenerator(AEPsychGenerator[MonotonicRejectionGP]):
         self.target_value = target_value
         self.objective = objective()
         self.explore_features = explore_features
+        self.dim = dim
 
     def gen(
         self,
         num_points: int,  # Current implementation only generates 1 point at a time
         model: MonotonicRejectionGP,
+        fixed_features: Optional[Dict[int, float]] = None,
+        **kwargs,
     ) -> torch.Tensor:
         """Query next point(s) to run by optimizing the acquisition function.
         Args:
             num_points (int): Number of points to query. current implementation only generates 1 point at a time.
             model (MonotonicRejectionGP): Fitted model of the data.
+            fixed_features (Dict[int, float], optional): Not implemented for this generator.
+            **kwargs: Ignored, API compatibility
         Returns:
             torch.Tensor: Next set of point(s) to evaluate, [num_points x dim].
         """
-
+        if fixed_features is not None:
+            warnings.warn(
+                "Cannot fix features when generating from MonotonicRejectionGenerator"
+            )
         # Generate the points at which to sample
         X = draw_sobol_samples(bounds=model.bounds_, n=self.num_ts_points, q=1).squeeze(
             1

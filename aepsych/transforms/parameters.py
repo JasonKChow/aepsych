@@ -385,7 +385,11 @@ class ParameterTransformedGenerator(ParameterTransformWrapper, ConfigurableMixin
         self.max_asks = self._base_obj.max_asks
 
     def gen(
-        self, num_points: int = 1, model: Optional[AEPsychMixin] = None
+        self,
+        num_points: int = 1,
+        model: Optional[AEPsychMixin] = None,
+        fixed_features: Optional[Dict[int, float]] = None,
+        **kwargs,
     ) -> torch.Tensor:
         r"""Query next point(s) to run from the generator and return them untransformed.
 
@@ -393,12 +397,27 @@ class ParameterTransformedGenerator(ParameterTransformWrapper, ConfigurableMixin
             num_points (int): Number of points to query, defaults to 1.
             model (AEPsychMixin, optional): The model to use to generate points, can be
                 None if no model is needed.
+            fixed_features: (Dict[int, float], optional): Parameters that are fixed to specific values.
+            **kwargs: Kwargs to pass to the generator's generator.
         Returns:
             torch.Tensor: Next set of point(s) to evaluate, `[num_points x dim]` or
             `[num_points x dim x stimuli_per_trial]` if `self.stimuli_per_trial != 1`,
             which will be untransformed.
         """
-        x = self._base_obj.gen(num_points, model)
+        transformed_fixed = {}
+        if fixed_features is not None:
+            dummy = torch.zeros([1, self._base_obj.dim])
+            for key, value in fixed_features.items():
+                dummy[:, key] = value
+
+            dummy = self.transforms.transform(dummy)
+
+            for key in fixed_features.keys():
+                transformed_fixed[key] = dummy[0, key].item()
+
+        x = self._base_obj.gen(
+            num_points, model, fixed_features=transformed_fixed, **kwargs
+        )
         return self.transforms.untransform(x)
 
     def _get_acqf_options(self, acqf: AcquisitionFunction, config: Config):
@@ -419,6 +438,41 @@ class ParameterTransformedGenerator(ParameterTransformWrapper, ConfigurableMixin
     @acqf_kwargs.setter
     def acqf_kwargs(self, value: dict):
         self._base_obj.acqf_kwargs = value
+
+    @property
+    def training(self) -> bool:
+        # Check if generator has it first
+        try:
+            return self._base_obj.training  # type: ignore
+        except AttributeError:
+            warnings.warn(
+                f"{self._base_obj.__class__.__name__} has no attribute 'training', returning transforms' `training`"
+            )
+            return self.transforms.training
+
+    def train(self):
+        """Set transforms to train mode and attempts to set the underlying generator to
+        train as well."""
+        self.transforms.train()
+
+        try:
+            self._base_obj.train()
+        except AttributeError:
+            warnings.warn(
+                f"{self._base_obj.__class__.__name__} has no attribute 'train'"
+            )
+
+    def eval(self):
+        """Set transforms to eval mode and attempts to set the underlying generator to
+        eval as well."""
+        self.transforms.eval()
+
+        try:
+            self._base_obj.eval()
+        except AttributeError:
+            warnings.warn(
+                f"{self._base_obj.__class__.__name__} has no attribute 'eval'"
+            )
 
     @classmethod
     def get_config_options(
@@ -651,6 +705,41 @@ class ParameterTransformedModel(ParameterTransformWrapper, ConfigurableMixin):
         """
         x = self.transforms.transform(x)
         return self._base_obj.p_below_threshold(x, f_thresh)
+
+    @property
+    def training(self) -> bool:
+        # Check if model has it first
+        try:
+            return self._base_obj.training  # type: ignore
+        except AttributeError:
+            warnings.warn(
+                f"{self._base_obj.__class__.__name__} has no attribute 'training', returning transforms' 'training'"
+            )
+            return self.transforms.training
+
+    def train(self):
+        """Set transforms to train mode and attempts to set the underlying model to
+        train as well."""
+        self.transforms.train()
+
+        try:
+            self._base_obj.train()
+        except AttributeError:
+            warnings.warn(
+                f"{self._base_obj.__class__.__name__} has no attribute 'train'"
+            )
+
+    def eval(self):
+        """Set transforms to eval mode and attempts to set the underlying model to
+        eval as well."""
+        self.transforms.eval()
+
+        try:
+            self._base_obj.eval()
+        except AttributeError:
+            warnings.warn(
+                f"{self._base_obj.__class__.__name__} has no attribute 'eval'"
+            )
 
     @classmethod
     def get_config_options(

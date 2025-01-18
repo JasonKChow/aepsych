@@ -13,12 +13,14 @@ import sys
 import threading
 import traceback
 import warnings
+from typing import Dict, Union
 
 import aepsych.database.db as db
 import aepsych.utils_logging as utils_logging
 import dill
 import numpy as np
 import torch
+from aepsych import version
 from aepsych.server.message_handlers import MESSAGE_MAP
 from aepsych.server.message_handlers.handle_ask import ask
 from aepsych.server.message_handlers.handle_setup import configure
@@ -39,7 +41,7 @@ DEFAULT_NAME = "default name"
 def get_next_filename(folder, fname, ext):
     """Generates appropriate filename for logging purposes."""
     n = sum(1 for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)))
-    return f"{folder}/{fname}_{n+1}.{ext}"
+    return f"{folder}/{fname}_{n + 1}.{ext}"
 
 
 class AEPsychServer(object):
@@ -270,6 +272,23 @@ class AEPsychServer(object):
 
         return x
 
+    def _fixed_to_idx(self, fixed: Dict[str, Union[float, str]]):
+        # Given a dictionary of fixed parameters, turn the parameters names into indices
+        dummy = np.zeros(len(self.parnames)).astype("O")
+        for key, value in fixed.items():
+            idx = self.parnames.index(key)
+            dummy[idx] = value
+        dummy = np.expand_dims(dummy, 0)
+        dummy = self.strat.transforms.str_to_indices(dummy)[0]
+
+        # Turn the dummy back into a dict
+        fixed_features = {}
+        for key in fixed.keys():
+            idx = self.parnames.index(key)
+            fixed_features[idx] = dummy[idx].item()
+
+        return fixed_features
+
     def __getstate__(self):
         # nuke the socket since it's not pickleble
         state = self.__dict__.copy()
@@ -405,6 +424,7 @@ def parse_argument():
 
 def start_server(server_class, args):
     logger.info("Starting the AEPsychServer")
+    logger.info(f"AEPsych Version: {version.__version__}")
     try:
         if "db" in args and args.db is not None:
             database_path = args.db
