@@ -33,7 +33,7 @@ from aepsych.server.replay import (
 from aepsych.server.sockets import BAD_REQUEST, DummySocket, PySocket
 from aepsych.utils import promote_0d
 
-logger = utils_logging.getLogger(logging.INFO)
+logger = utils_logging.getLogger()
 DEFAULT_DESC = "default description"
 DEFAULT_NAME = "default name"
 
@@ -477,7 +477,7 @@ def main(server_class=AEPsychServer):
     if args.logs:
         # overide logger path
         log_path = args.logs
-        logger = utils_logging.getLogger(logging.DEBUG, log_path)
+        logger = utils_logging.getLogger(log_path)
     logger.info(f"Saving logs to path: {log_path}")
     start_server(server_class, args)
 
