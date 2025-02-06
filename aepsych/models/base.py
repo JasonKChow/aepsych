@@ -28,9 +28,21 @@ class AEPsychModelMixin(GPyTorchModel, ConfigurableMixin):
 
     extremum_solver = "Nelder-Mead"
     outcome_types: List[str] = []
+    stimuli_per_trial: int = 1
+
+    dim: int
     _train_inputs: Optional[Tuple[torch.Tensor]]
     _train_targets: Optional[torch.Tensor]
-    stimuli_per_trial: int = 1
+
+    def fit(self, train_x: torch.Tensor, train_y: torch.Tensor, **kwargs: Any) -> None:
+        """Fit underlying model. Must be overriden by subclasses.
+
+        Args:
+            train_x (torch.Tensor): Inputs.
+            train_y (torch.LongTensor): Responses.
+            **kwargs: Extra kwargs for fitting the model.
+        """
+        raise NotImplementedError
 
     @property
     def device(self) -> torch.device:
@@ -192,7 +204,7 @@ class AEPsychModelMixin(GPyTorchModel, ConfigurableMixin):
             **kwargs: Keyword arguments for model-specific predict kwargs.
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: Posterior mean and variance at queries points.
+            Tuple[torch.Tensor, torch.Tensor]: Posterior mean and variance at query points.
         """
         with torch.no_grad():
             x = x.to(self.device)
@@ -217,7 +229,7 @@ class AEPsychModelMixin(GPyTorchModel, ConfigurableMixin):
                 transformation is applied.
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: Transformed posterior mean and variance at queries points.
+            Tuple[torch.Tensor, torch.Tensor]: Transformed posterior mean and variance at query points.
         """
         if transformed_posterior_cls is None:
             return self.predict(x)
