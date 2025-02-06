@@ -26,7 +26,7 @@ from aepsych.server.replay import (
     replay,
 )
 
-logger = utils_logging.getLogger(logging.INFO)
+logger = utils_logging.getLogger()
 
 
 def get_next_filename(folder, fname, ext):
