@@ -83,7 +83,7 @@ class BaseServerTestCase(unittest.TestCase):
 
     def setUp(self):
         # setup logger
-        server.logger = utils_logging.getLogger(logging.DEBUG, "logs")
+        server.logger = utils_logging.getLogger("logs")
         # random port
         socket = server.sockets.PySocket(port=0)
         # random datebase path name without dashes
